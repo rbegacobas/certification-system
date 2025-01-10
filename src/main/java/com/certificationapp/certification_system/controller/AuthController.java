@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
  * Controller for handling authentication requests.
  * Provides endpoints for user registration and login.
  */
+
 @RestController
 @RequestMapping("/v1/auth")
 @Tag(name = "Authentication", description = "Authentication APIs")
