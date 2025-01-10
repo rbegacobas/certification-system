@@ -1,81 +1,101 @@
 package com.certificationapp.certification_system.service;
 
-import com.certificationapp.certification_system.exception.FileStorageException;
+import com.certificationapp.certification_system.config.FileStorageProperties;
+import com.certificationapp.certification_system.exception.*;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
+import java.io.InputStream;
+import java.nio.file.*;
 import java.util.UUID;
 
-/**
- * Service for handling file storage operations.
- * Manages the storage and retrieval of document files.
- */
 @Slf4j
 @Service
 public class FileStorageService {
 
     private final Path fileStorageLocation;
+    private final FileStorageProperties fileStorageProperties;
 
-    public FileStorageService(@Value("${app.file.upload-dir:./uploads}") String uploadDir) {
-        this.fileStorageLocation = Paths.get(uploadDir)
+    public FileStorageService(FileStorageProperties fileStorageProperties) {
+        this.fileStorageProperties = fileStorageProperties;
+        this.fileStorageLocation = Paths.get(fileStorageProperties.getUploadDir())
                 .toAbsolutePath()
                 .normalize();
 
         try {
             Files.createDirectories(this.fileStorageLocation);
         } catch (IOException ex) {
-            throw new FileStorageException("Could not create the directory where the uploaded files will be stored.", ex);
+            throw new FileStorageOperationException("Could not create the directory where the uploaded files will be stored.", ex);
         }
     }
 
-    /**
-     * Stores a file and returns its generated filename.
-     *
-     * @param file the file to store
-     * @return the generated filename
-     * @throws FileStorageException if the file cannot be stored
-     */
     public String storeFile(MultipartFile file) {
+        validateFile(file);
+
         String originalFileName = StringUtils.cleanPath(file.getOriginalFilename());
-        String fileExtension = originalFileName.substring(originalFileName.lastIndexOf("."));
-        String fileName = UUID.randomUUID().toString() + fileExtension;
+        String fileExtension = getFileExtension(originalFileName);
+        String fileName = generateUniqueFileName(fileExtension);
 
         try {
-            // Check if the filename contains invalid characters
-            if (fileName.contains("..")) {
-                throw new FileStorageException("Filename contains invalid path sequence: " + originalFileName);
+            Path targetLocation = this.fileStorageLocation.resolve(fileName);
+
+            // Usar un InputStream para manejar archivos grandes
+            try (InputStream inputStream = file.getInputStream()) {
+                Files.copy(inputStream, targetLocation, StandardCopyOption.REPLACE_EXISTING);
             }
 
-            // Copy file to the target location
-            Path targetLocation = this.fileStorageLocation.resolve(fileName);
-            Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
-
+            log.info("File {} stored successfully as {}", originalFileName, fileName);
             return fileName;
         } catch (IOException ex) {
-            throw new FileStorageException("Could not store file " + fileName + ". Please try again!", ex);
+            throw new FileStorageOperationException("Could not store file " + fileName, ex);
         }
     }
 
-    /**
-     * Deletes a file by its name.
-     *
-     * @param fileName the name of the file to delete
-     * @throws FileStorageException if the file cannot be deleted
-     */
     public void deleteFile(String fileName) {
         try {
             Path targetLocation = this.fileStorageLocation.resolve(fileName);
             Files.deleteIfExists(targetLocation);
+            log.info("File {} deleted successfully", fileName);
         } catch (IOException ex) {
-            throw new FileStorageException("Could not delete file " + fileName + ". Please try again!", ex);
+            throw new FileStorageOperationException("Could not delete file " + fileName, ex);
         }
+    }
+
+    private void validateFile(MultipartFile file) {
+        // Validar si el archivo está vacío
+        if (file.isEmpty()) {
+            throw new FileStorageException("Failed to store empty file");
+        }
+
+        // Validar el tamaño del archivo
+        if (file.getSize() > fileStorageProperties.getMaxFileSize()) {
+            throw new FileSizeLimitExceededException(
+                    String.format("File size exceeds maximum allowed size of %d bytes",
+                            fileStorageProperties.getMaxFileSize())
+            );
+        }
+
+        // Validar el tipo de archivo
+        String contentType = file.getContentType();
+        if (contentType == null || !fileStorageProperties.isFileTypeAllowed(contentType)) {
+            throw new InvalidFileTypeException("File type not allowed: " + contentType);
+        }
+
+        // Validar la extensión del archivo
+        String fileName = StringUtils.cleanPath(file.getOriginalFilename());
+        if (!fileStorageProperties.isExtensionAllowed(fileName)) {
+            throw new InvalidFileTypeException("File extension not allowed for file: " + fileName);
+        }
+    }
+
+    private String generateUniqueFileName(String fileExtension) {
+        return UUID.randomUUID().toString() + fileExtension;
+    }
+
+    private String getFileExtension(String fileName) {
+        return fileName.substring(fileName.lastIndexOf("."));
     }
 }
