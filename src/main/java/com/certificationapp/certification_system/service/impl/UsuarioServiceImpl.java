@@ -14,17 +14,11 @@ import java.util.List;
 
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class UsuarioServiceImpl implements UsuarioService{
+
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
-
-
-    public UsuarioServiceImpl(UsuarioRepository usuarioRepository, PasswordEncoder passwordEncoder) {
-        this.usuarioRepository = usuarioRepository;
-        this.passwordEncoder = passwordEncoder;
-    }
-
-
 
     @Override
     public Usuario crearUsuario(UsuarioCreateDTO createDTO) {

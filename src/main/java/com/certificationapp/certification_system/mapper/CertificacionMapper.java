@@ -19,6 +19,7 @@ public interface CertificacionMapper {
     @Mapping(target = "fechaCreacion", ignore = true)
     @Mapping(target = "documentos", ignore = true)
     @Mapping(target = "status", constant = "PENDING")
+    @Mapping(target = "usuario.id", source = "usuarioId")
     Certificacion toEntity(CertificacionCreateDTO dto);
 
     @Mapping(source = "usuario.id", target = "usuarioId")

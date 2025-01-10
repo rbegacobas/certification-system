@@ -2,6 +2,7 @@ package com.certificationapp.certification_system.service;
 
 import com.certificationapp.certification_system.config.FileStorageProperties;
 import com.certificationapp.certification_system.exception.*;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -10,12 +11,14 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.*;
+import java.util.Objects;
 import java.util.UUID;
 
 @Slf4j
 @Service
 public class FileStorageService {
 
+    @Getter
     private final Path fileStorageLocation;
     private final FileStorageProperties fileStorageProperties;
 
@@ -35,7 +38,7 @@ public class FileStorageService {
     public String storeFile(MultipartFile file) {
         validateFile(file);
 
-        String originalFileName = StringUtils.cleanPath(file.getOriginalFilename());
+        String originalFileName = StringUtils.cleanPath(Objects.requireNonNull(file.getOriginalFilename()));
         String fileExtension = getFileExtension(originalFileName);
         String fileName = generateUniqueFileName(fileExtension);
 
@@ -85,7 +88,7 @@ public class FileStorageService {
         }
 
         // Validar la extensión del archivo
-        String fileName = StringUtils.cleanPath(file.getOriginalFilename());
+        String fileName = StringUtils.cleanPath(Objects.requireNonNull(file.getOriginalFilename()));
         if (!fileStorageProperties.isExtensionAllowed(fileName)) {
             throw new InvalidFileTypeException("File extension not allowed for file: " + fileName);
         }

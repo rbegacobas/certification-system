@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -23,13 +24,14 @@ import java.util.stream.Collectors;
  * Implements standard CRUD operations and follows REST best practices.
  */
 @RestController
-@RequestMapping("/api/v1/users")
+@RequestMapping("/v1/users")
 @Tag(name = "User Management", description = "APIs for managing users")
-@RequiredArgsConstructor
 public class UsuarioController {
 
-    private final UsuarioService usuarioService;
-    private final UsuarioMapper usuarioMapper;
+    @Autowired
+    private UsuarioService usuarioService;
+    @Autowired
+    private UsuarioMapper usuarioMapper;
 
     @PostMapping
     @Operation(summary = "Create a new user", description = "Creates a new user with the provided data")

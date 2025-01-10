@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
  * @since 2024-01-09
  */
 @RestController
-@RequestMapping("/api/v1/certifications")
+@RequestMapping("/v1/certifications")
 @Tag(name = "Certification Management", description = "APIs for managing certifications")
 @RequiredArgsConstructor
 public class CertificacionController {
@@ -43,7 +43,7 @@ public class CertificacionController {
      */
     @PostMapping
     @Operation(summary = "Create certification", description = "Creates a new certification request")
-    public ResponseEntity<ApiResponse<CertificacionResponseDTO>> createCertification(
+    public ResponseEntity<com.certificationapp.certification_system.common.ApiResponse<CertificacionResponseDTO>> createCertification(
             @Valid @RequestBody CertificacionCreateDTO createDTO) {
 
         var certificacion = certificacionMapper.toEntity(createDTO);
@@ -52,7 +52,10 @@ public class CertificacionController {
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(ApiResponse.success(responseDTO, "Certification created successfully"));
+                .body(com.certificationapp.certification_system.common.ApiResponse.success(
+                        responseDTO,
+                        "Certification created successfully"
+                ));
     }
 
     /**

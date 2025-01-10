@@ -1,6 +1,7 @@
 package com.certificationapp.certification_system.service.impl;
 
 import com.certificationapp.certification_system.exception.ResourceNotFoundException;
+import com.certificationapp.certification_system.mapper.CertificacionMapper;
 import com.certificationapp.certification_system.model.Certificacion;
 import com.certificationapp.certification_system.model.Usuario;
 import com.certificationapp.certification_system.repository.CertificacionRepository;
@@ -19,9 +20,13 @@ import java.util.List;
 public class CertificacionServiceImpl implements CertificacionService{
     private final CertificacionRepository certificacionRepository;
     private final UsuarioService usuarioService;
+    private final CertificacionMapper certificacionMapper;
 
     @Override
     public Certificacion crearCertificacion(Certificacion certificacion) {
+        // Verificar y cargar el usuario completo
+        Usuario usuario = usuarioService.obtenerUsuarioPorId(certificacion.getUsuario().getId());
+        certificacion.setUsuario(usuario);
         return certificacionRepository.save(certificacion);
     }
 
