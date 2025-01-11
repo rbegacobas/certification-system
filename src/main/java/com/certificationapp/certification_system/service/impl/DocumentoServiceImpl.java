@@ -10,20 +10,41 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
-
 public class DocumentoServiceImpl implements DocumentoService {
 
     private final DocumentoRepository documentoRepository;
     private final CertificacionService certificacionService;
 
+    private static final Set<String> TIPOS_PERMITIDOS = new HashSet<>(Arrays.asList(
+            "application/pdf",
+            "image/jpeg",
+            "image/png",
+            "application/msword",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    ));
+
     @Override
     public Documento guardarDocumento(Documento documento) {
+        validarDocumento(documento);
         return documentoRepository.save(documento);
+    }
+
+    private void validarDocumento(Documento documento) {
+        if (documento.getCertificacion() == null) {
+            throw new IllegalArgumentException("La certificación es obligatoria");
+        }
+
+        if (documento.getTipo() == null || !TIPOS_PERMITIDOS.contains(documento.getTipo())) {
+            throw new IllegalArgumentException("Tipo de documento no permitido");
+        }
     }
 
     @Override
@@ -47,5 +68,4 @@ public class DocumentoServiceImpl implements DocumentoService {
         }
         documentoRepository.deleteById(id);
     }
-
 }

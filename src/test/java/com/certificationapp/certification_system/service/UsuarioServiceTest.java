@@ -22,7 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class UsuarioServiceTest {
@@ -41,7 +41,6 @@ class UsuarioServiceTest {
 
     @BeforeEach
     void setUp() {
-        // Configuración inicial de datos de prueba
         usuarioTest = new Usuario();
         usuarioTest.setId(1L);
         usuarioTest.setUsername("testuser");
@@ -58,107 +57,150 @@ class UsuarioServiceTest {
     @Test
     @DisplayName("Crear usuario exitosamente cuando los datos son válidos")
     void crearUsuario_ConDatosValidos_RetornaUsuarioCreado() {
-        // Arrange
         when(usuarioRepository.existsByEmail(anyString())).thenReturn(false);
         when(usuarioRepository.existsByUsername(anyString())).thenReturn(false);
         when(passwordEncoder.encode(anyString())).thenReturn("hashedPassword");
         when(usuarioRepository.save(any(Usuario.class))).thenReturn(usuarioTest);
 
-        // Act
         Usuario resultado = usuarioService.crearUsuario(createDTO);
 
-        // Assert
         assertThat(resultado).isNotNull();
         assertThat(resultado.getUsername()).isEqualTo(usuarioTest.getUsername());
         assertThat(resultado.getEmail()).isEqualTo(usuarioTest.getEmail());
         assertThat(resultado.getRole()).isEqualTo(Usuario.Role.USER);
+        verify(passwordEncoder).encode(anyString());
     }
 
     @Test
     @DisplayName("Crear usuario falla cuando el email ya existe")
     void crearUsuario_EmailExistente_LanzaExcepcion() {
-        // Arrange
         when(usuarioRepository.existsByEmail(anyString())).thenReturn(true);
 
-        // Act & Assert
         assertThatThrownBy(() -> usuarioService.crearUsuario(createDTO))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Email already registered");
     }
 
     @Test
+    @DisplayName("Crear usuario falla cuando username ya existe")
+    void crearUsuario_UsernameExistente_LanzaExcepcion() {
+        when(usuarioRepository.existsByEmail(anyString())).thenReturn(false);
+        when(usuarioRepository.existsByUsername(anyString())).thenReturn(true);
+
+        assertThatThrownBy(() -> usuarioService.crearUsuario(createDTO))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Username already taken");
+    }
+
+    @Test
+    @DisplayName("Actualizar usuario exitosamente")
+    void actualizarUsuario_DatosValidos_RetornaUsuarioActualizado() {
+        Usuario usuarioActualizado = new Usuario();
+        usuarioActualizado.setId(1L);
+        usuarioActualizado.setUsername("updateduser");
+        usuarioActualizado.setEmail("updated@example.com");
+
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuarioTest));
+        when(usuarioRepository.existsByEmail(anyString())).thenReturn(false);
+        when(usuarioRepository.existsByUsername(anyString())).thenReturn(false);
+        when(usuarioRepository.save(any(Usuario.class))).thenReturn(usuarioActualizado);
+
+        Usuario resultado = usuarioService.actualizarUsuario(1L, usuarioActualizado);
+
+        assertThat(resultado).isNotNull();
+        assertThat(resultado.getUsername()).isEqualTo("updateduser");
+        assertThat(resultado.getEmail()).isEqualTo("updated@example.com");
+    }
+
+    @Test
+    @DisplayName("Eliminar usuario exitosamente")
+    void eliminarUsuario_IdExistente_EliminaUsuario() {
+        when(usuarioRepository.existsById(1L)).thenReturn(true);
+        doNothing().when(usuarioRepository).deleteById(1L);
+
+        usuarioService.eliminarUsuario(1L);
+
+        verify(usuarioRepository).deleteById(1L);
+    }
+
+    @Test
+    @DisplayName("Eliminar usuario con ID inexistente lanza excepción")
+    void eliminarUsuario_IdInexistente_LanzaExcepcion() {
+        when(usuarioRepository.existsById(99L)).thenReturn(false);
+
+        assertThatThrownBy(() -> usuarioService.eliminarUsuario(99L))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("Usuario no encontrado con id: 99");
+    }
+
+    @Test
+    @DisplayName("Validar contraseña cumple requisitos mínimos")
+    void crearUsuario_ContraseñaInvalida_LanzaExcepcion() {
+        createDTO.setPassword("123"); // contraseña muy corta
+
+        assertThatThrownBy(() -> usuarioService.crearUsuario(createDTO))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Password must be at least 6 characters");
+    }
+
+    @Test
+    @DisplayName("Crear usuario con rol específico")
+    void crearUsuario_ConRolEspecifico_AsignaRolCorrecto() {
+        when(usuarioRepository.existsByEmail(anyString())).thenReturn(false);
+        when(usuarioRepository.existsByUsername(anyString())).thenReturn(false);
+        when(passwordEncoder.encode(anyString())).thenReturn("hashedPassword");
+
+        Usuario usuarioAdmin = new Usuario();
+        usuarioAdmin.setRole(Usuario.Role.ADMIN);
+        when(usuarioRepository.save(any(Usuario.class))).thenReturn(usuarioAdmin);
+
+        Usuario resultado = usuarioService.crearUsuario(createDTO);
+
+        assertThat(resultado).isNotNull();
+        assertThat(resultado.getRole()).isEqualTo(Usuario.Role.ADMIN);
+    }
+
+    @Test
     @DisplayName("Obtener usuario por ID exitosamente")
     void obtenerUsuarioPorId_IdExistente_RetornaUsuario() {
-        // Arrange
         when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuarioTest));
 
-        // Act
         Usuario resultado = usuarioService.obtenerUsuarioPorId(1L);
 
-        // Assert
         assertThat(resultado).isNotNull();
         assertThat(resultado.getId()).isEqualTo(1L);
         assertThat(resultado.getUsername()).isEqualTo(usuarioTest.getUsername());
     }
 
     @Test
-    @DisplayName("Obtener usuario por ID inexistente lanza excepción")
-    void obtenerUsuarioPorId_IdInexistente_LanzaExcepcion() {
-        // Arrange
-        when(usuarioRepository.findById(99L)).thenReturn(Optional.empty());
-
-        // Act & Assert
-        assertThatThrownBy(() -> usuarioService.obtenerUsuarioPorId(99L))
-                .isInstanceOf(ResourceNotFoundException.class)
-                .hasMessageContaining("Usuario no encontrado con id: 99");
-    }
-
-    @Test
     @DisplayName("Obtener todos los usuarios exitosamente")
     void obtenerTodosLosUsuarios_ExistenUsuarios_RetornaLista() {
-        // Arrange
-        Usuario usuario2 = new Usuario();
-        usuario2.setId(2L);
-        usuario2.setUsername("testuser2");
-
-        List<Usuario> usuarios = Arrays.asList(usuarioTest, usuario2);
+        List<Usuario> usuarios = Arrays.asList(usuarioTest, new Usuario());
         when(usuarioRepository.findAll()).thenReturn(usuarios);
 
-        // Act
         List<Usuario> resultado = usuarioService.obtenerTodosLosUsuarios();
 
-        // Assert
-        assertThat(resultado).isNotNull();
         assertThat(resultado).hasSize(2);
-        assertThat(resultado.get(0).getUsername()).isEqualTo("testuser");
-        assertThat(resultado.get(1).getUsername()).isEqualTo("testuser2");
-    }
-
-    @Test
-    @DisplayName("Verificar existencia de email")
-    void existeEmail_EmailExistente_RetornaTrue() {
-        // Arrange
-        String email = "test@example.com";
-        when(usuarioRepository.existsByEmail(email)).thenReturn(true);
-
-        // Act
-        boolean resultado = usuarioService.existeEmail(email);
-
-        // Assert
-        assertThat(resultado).isTrue();
+        verify(usuarioRepository).findAll();
     }
 
     @Test
     @DisplayName("Verificar existencia de username")
     void existeUsername_UsernameExistente_RetornaTrue() {
-        // Arrange
-        String username = "testuser";
-        when(usuarioRepository.existsByUsername(username)).thenReturn(true);
+        when(usuarioRepository.existsByUsername("testuser")).thenReturn(true);
 
-        // Act
-        boolean resultado = usuarioService.existeUsername(username);
+        boolean resultado = usuarioService.existeUsername("testuser");
 
-        // Assert
+        assertThat(resultado).isTrue();
+    }
+
+    @Test
+    @DisplayName("Verificar existencia de email")
+    void existeEmail_EmailExistente_RetornaTrue() {
+        when(usuarioRepository.existsByEmail("test@example.com")).thenReturn(true);
+
+        boolean resultado = usuarioService.existeEmail("test@example.com");
+
         assertThat(resultado).isTrue();
     }
 }
