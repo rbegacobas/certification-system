@@ -22,12 +22,7 @@ public class UsuarioServiceImpl implements UsuarioService{
 
     @Override
     public Usuario crearUsuario(UsuarioCreateDTO createDTO) {
-        if (usuarioRepository.existsByEmail(createDTO.getEmail())) {
-            throw new IllegalArgumentException("Email already registered");
-        }
-        if (usuarioRepository.existsByUsername(createDTO.getUsername())) {
-            throw new IllegalArgumentException("Username already taken");
-        }
+        validarDatosCreacionUsuario(createDTO);
 
         Usuario usuario = new Usuario();
         usuario.setUsername(createDTO.getUsername());
@@ -37,6 +32,28 @@ public class UsuarioServiceImpl implements UsuarioService{
 
         return usuarioRepository.save(usuario);
     }
+
+    private void validarDatosCreacionUsuario(UsuarioCreateDTO createDTO) {
+        // Validar email duplicado
+        if (usuarioRepository.existsByEmail(createDTO.getEmail())) {
+            throw new IllegalArgumentException("Email already registered");
+        }
+
+        // Validar username duplicado
+        if (usuarioRepository.existsByUsername(createDTO.getUsername())) {
+            throw new IllegalArgumentException("Username already taken");
+        }
+
+        // Validar requisitos de contraseña
+        if (createDTO.getPassword() == null || createDTO.getPassword().length() < 6) {
+            throw new IllegalArgumentException("Password must be at least 6 characters");
+        }
+
+        // Aquí podrías agregar más validaciones de contraseña si lo necesitas
+        // Por ejemplo, requerir números, caracteres especiales, etc.
+    }
+
+
 
     @Override
     @Transactional(readOnly = true)
